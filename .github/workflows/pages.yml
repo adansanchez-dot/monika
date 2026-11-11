@@ -1,0 +1,62 @@
+name: Build Monika Full Week for GitHub Pages
+
+on:
+  push:
+    branches: [github-pages-test]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Haxe
+        uses: krdlab/setup-haxe@v1
+        with:
+          haxe-version: '4.2.5'
+
+      - name: Install Lime and OpenFL
+        run: |
+          haxelib install lime
+          haxelib run lime setup -y
+          haxelib install openfl
+          haxelib run openfl setup -y
+
+      - name: Install game libraries
+        run: |
+          haxelib install flixel
+          haxelib install flixel-addons
+          haxelib install flixel-ui
+          haxelib install hscript
+          haxelib install newgrounds
+          haxelib install polymod
+
+      - name: Build HTML5
+        run: haxelib run lime build Project.xml html5 -release
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: export/release/html5/bin
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
